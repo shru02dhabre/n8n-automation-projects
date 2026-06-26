@@ -1,0 +1,231 @@
+{
+  "name": "AI Support Triage bot",
+  "nodes": [
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a support ticket classifier. Given this customer message, respond ONLY with valid JSON in this exact format and nothing else:\n{\n  \"category\": \"billing\" or \"technical\" or \"general\" or \"urgent\",\n  \"suggested_reply\": \"a short, helpful reply to the customer\",\n  \"needs_human\": true or false\n}\n\nCustomer message: {{  $('Webhook').item.json.body.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "6d7054e1-eb25-4c3b-9296-38a3fbd5e3aa",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "vgYvFWSw4kjnC7YL",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.content[0].text;\nconst clean = raw.replace(/```json|```/g, '').trim();\nconst parsed = JSON.parse(clean);\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        16
+      ],
+      "id": "2f6e9978-f701-424b-9801-bbc1f14198fd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "098be14d-b3e5-4d62-b666-c340b8bea5ab",
+              "leftValue": "={{ $json.needs_human }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        768,
+        32
+      ],
+      "id": "f83192e2-4f93-4fd5-a50e-10802fb60646",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"reply\": \"{{ $json.suggested_reply }}\",\n  \"category\": \"{{ $json.category }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        976,
+        128
+      ],
+      "id": "34505bc8-1409-482f-9d0a-960b1648a38e",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "sendTo": "shrutika.dhabre25@gmail.com",
+        "subject": "= Urgent Support Ticket - {{ $json.category }}",
+        "message": "=Category: {{ $json.category }} Customer Message: {{ $('Webhook').item.json.body.message }} Suggested Reply: {{ $json.suggested_reply }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        -64
+      ],
+      "id": "ceaa9279-72a0-4c77-8794-cdef0157cde9",
+      "name": "Send a message",
+      "webhookId": "e83dff61-78cf-4226-af1b-4828faf0d6d2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "LjjcyPZt00RgNY83",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1184,
+        -64
+      ],
+      "id": "b0a486dc-5cd2-4184-ac58-b44c29fd98c7",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "support-bot",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "831b512d-a0fc-4ec5-80ba-04d3e21cfd69",
+      "name": "Webhook",
+      "webhookId": "8ebc7c42-1964-44a8-8b1e-3a43e74e9c8a"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d1cd51af-955e-4d56-807e-370006a2ccc1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "df8e17d43dc6da51042a1a865a1f47b16727888e9877e10ecc30b3829bc1345c"
+  },
+  "nodeGroups": [],
+  "id": "PFQb1tonvcpQ9RjO",
+  "tags": []
+}
